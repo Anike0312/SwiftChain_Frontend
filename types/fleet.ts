@@ -150,3 +150,28 @@ export interface AssignmentResult {
   success: boolean;
   error?: string;
 }
+
+export type VehicleType = 'van' | 'truck' | 'refrigerated' | 'motorcycle';
+
+export interface VehicleRegistrationInput {
+  plateNumber: string;
+  make: string;
+  model: string;
+  year: string;
+  type: VehicleType | '';
+  capacityKg: string;
+  temperatureMin: string;
+  cargoBoxSize: string;
+  registrationDocument: File | null;
+  vehiclePhoto: File | null;
+}
+
+export interface RegisteredVehicle {
+  id: string;
+  plateNumber: string;
+  make: string;
+  model: string;
+  year: number;
+  type: VehicleType;
+  capacityKg: number;
+}
