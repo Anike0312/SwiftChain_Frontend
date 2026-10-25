@@ -1,206 +1,122 @@
-'use client';
-
-import jsQR from 'jsqr';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MobileQrScanResult } from '@/types/mobileQrScanner';
+import { mobileQrScannerService } from '@/services/mobileQrScannerService';
 
-export type CameraPermissionState =
-  | 'idle'
-  | 'requesting'
-  | 'granted'
-  | 'denied'
-  | 'unavailable'
-  | 'error';
-
-export interface UseMobileQrScannerOptions {
-  autoStart?: boolean;
-  scanIntervalMs?: number;
-  onDecode?: (_data: string) => void;
+interface UseMobileQrScannerResult {
+  error: string | null;
+  isCameraActive: boolean;
+  isLoadingPermission: boolean;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  scanResult: MobileQrScanResult | null;
+  manualCode: string;
+  setManualCode: (value: string) => void;
+  startCamera: () => Promise<void>;
+  stopCamera: () => void;
+  handleScan: (qrCode: string) => Promise<MobileQrScanResult | null>;
 }
 
-const DEFAULT_SCAN_INTERVAL_MS = 1_000;
-
-function cameraError(error: unknown): {
-  permission: CameraPermissionState;
-  message: string;
-} {
-  const name = error instanceof DOMException ? error.name : '';
-  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-    return { permission: 'denied', message: 'Camera permission was denied.' };
-  }
-  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-    return {
-      permission: 'unavailable',
-      message: 'No camera was found on this device.',
-    };
-  }
-  return { permission: 'error', message: 'The camera could not be started.' };
-}
-
-export function useMobileQrScanner(
-  options: UseMobileQrScannerOptions = {},
-) {
-  const {
-    autoStart = true,
-    scanIntervalMs = DEFAULT_SCAN_INTERVAL_MS,
-    onDecode,
-  } = options;
+export function useMobileQrScanner(): UseMobileQrScannerResult {
+  const [error, setError] = useState<string | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isLoadingPermission, setIsLoadingPermission] = useState(false);
+  const [scanResult, setScanResult] = useState<MobileQrScanResult | null>(null);
+  const [manualCode, setManualCode] = useState('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const mountedRef = useRef(true);
-  const scanningRef = useRef(false);
-  const onDecodeRef = useRef(onDecode);
-  const [data, setData] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [permission, setPermission] =
-    useState<CameraPermissionState>('idle');
-  const [isScanning, setIsScanning] = useState(false);
 
-  useEffect(() => {
-    onDecodeRef.current = onDecode;
-  }, [onDecode]);
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
 
-  const clearTimer = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    setIsCameraActive(false);
+    setIsLoadingPermission(false);
   }, []);
 
-  const stopTracks = useCallback(() => {
-    clearTimer();
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
-    scanningRef.current = false;
-  }, [clearTimer]);
-
-  const stopScanning = useCallback(() => {
-    stopTracks();
-    if (mountedRef.current) {
-      setIsScanning(false);
-      setPermission('idle');
-    }
-  }, [stopTracks]);
-
-  const startScanning = useCallback(async () => {
-    stopTracks();
+  const startCamera = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      setPermission('unavailable');
-      setError('Camera access is not available on this device.');
+      setError('Camera is not available on this device.');
+      setIsCameraActive(false);
       return;
     }
 
-    setPermission('requesting');
     setError(null);
-    setData(null);
+    setIsLoadingPermission(true);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
+        video: { facingMode: 'environment' },
       });
 
-      if (!mountedRef.current) {
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-
-      const video = videoRef.current;
-      if (!video) {
-        stream.getTracks().forEach((track) => track.stop());
-        setPermission('error');
-        setError('The scanner video is not mounted.');
-        return;
-      }
-
       streamRef.current = stream;
-      video.setAttribute('playsinline', 'true');
-      video.muted = true;
-      video.srcObject = stream;
-      await video.play();
-      scanningRef.current = true;
-      setPermission('granted');
-      setIsScanning(true);
 
-      const scanFrame = () => {
-        if (!scanningRef.current) return;
-        const activeVideo = videoRef.current;
-        if (
-          activeVideo &&
-          activeVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
-        ) {
-          const width = activeVideo.videoWidth;
-          const height = activeVideo.videoHeight;
-          if (width > 0 && height > 0) {
-            const canvas =
-              canvasRef.current ?? document.createElement('canvas');
-            canvasRef.current = canvas;
-            canvas.width = width;
-            canvas.height = height;
-            const context = canvas.getContext('2d', {
-              willReadFrequently: true,
-            });
-            if (context) {
-              context.drawImage(activeVideo, 0, 0, width, height);
-              const image = context.getImageData(0, 0, width, height);
-              const result = jsQR(image.data, width, height, {
-                inversionAttempts: 'dontInvert',
-              });
-              const decoded = result?.data?.trim();
-              if (decoded) {
-                setData(decoded);
-                onDecodeRef.current?.(decoded);
-                stopTracks();
-                setIsScanning(false);
-                return;
-              }
-            }
-          }
-        }
-        timerRef.current = setTimeout(scanFrame, scanIntervalMs);
-      };
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        await videoRef.current.play();
+      }
 
-      timerRef.current = setTimeout(scanFrame, scanIntervalMs);
-    } catch (caught) {
-      stopTracks();
-      if (!mountedRef.current) return;
-      const state = cameraError(caught);
-      setPermission(state.permission);
-      setError(state.message);
-      setIsScanning(false);
+      setIsCameraActive(true);
+    } catch (err: unknown) {
+      setIsCameraActive(false);
+
+      if (err instanceof Error && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+        setError('Camera permission denied. Please enable camera access to scan delivery QR codes.');
+      } else if (err instanceof Error && (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError')) {
+        setError('No camera device found.');
+      } else {
+        setError('Failed to access camera.');
+      }
+    } finally {
+      setIsLoadingPermission(false);
     }
-  }, [scanIntervalMs, stopTracks]);
+  }, []);
 
-  const clearResult = useCallback(() => {
-    setData(null);
+  const handleScan = useCallback(async (qrCode: string): Promise<MobileQrScanResult | null> => {
+    const normalizedQrCode = qrCode.trim();
+
+    if (!normalizedQrCode) {
+      setError('Please enter a valid delivery code.');
+      return null;
+    }
+
     setError(null);
+    setIsLoadingPermission(true);
+
+    try {
+      const result = await mobileQrScannerService.verifyQrCode(normalizedQrCode);
+      setScanResult(result);
+      return result;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unable to verify QR code.';
+      setError(message);
+      return null;
+    } finally {
+      setIsLoadingPermission(false);
+    }
   }, []);
 
   useEffect(() => {
-    mountedRef.current = true;
-    if (autoStart) {
-      autoStartTimerRef.current = setTimeout(() => void startScanning(), 0);
-    }
     return () => {
-      mountedRef.current = false;
-      if (autoStartTimerRef.current) clearTimeout(autoStartTimerRef.current);
-      stopTracks();
+      stopCamera();
     };
-  }, [autoStart, startScanning, stopTracks]);
+  }, [stopCamera]);
 
   return {
-    videoRef,
-    data,
     error,
-    permission,
-    isScanning,
-    startScanning,
-    stopScanning,
-    clearResult,
+    isCameraActive,
+    isLoadingPermission,
+    videoRef,
+    scanResult,
+    manualCode,
+    setManualCode,
+    startCamera,
+    stopCamera,
+    handleScan,
   };
 }
