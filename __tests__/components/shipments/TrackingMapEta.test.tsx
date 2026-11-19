@@ -23,6 +23,8 @@ import type { RouteData } from '@/types/tracking';
 
 const mockFitBounds = jest.fn();
 
+jest.mock('leaflet/dist/leaflet.css', () => ({}));
+
 jest.mock('@/hooks/useTrackingRoute');
 const mockUseTrackingRoute = useTrackingRoute as jest.MockedFunction<
   typeof useTrackingRoute
