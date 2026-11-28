@@ -11,12 +11,7 @@ interface UseAuthReturn {
   user: AuthUser | null;
 }
 
-const API_TO_STORE_ROLE: Record<string, UserRole> = {
-  customer: 'Customer',
-  driver: 'Driver',
-  admin: 'Admin',
-};
-
+/** Thin accessor over the centralized session; see SessionProvider. */
 export function useAuth(): UseAuthReturn {
   const [isLoading, setIsLoading] = useState(true);
   const { user, isAuthenticated, setUser, clearUser } = useAuthStore();

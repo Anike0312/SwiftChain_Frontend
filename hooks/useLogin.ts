@@ -109,10 +109,8 @@ export function useLogin(): UseLoginReturn {
         } else {
           setErrors({ form: response.message || 'Login failed' });
         }
-      } catch (error: any) {
-        const errorMessage =
-          error?.response?.data?.message || error?.message || 'An error occurred during login';
-        setErrors({ form: errorMessage });
+      } catch (error: unknown) {
+        setErrors({ form: normalizeAuthError(error).message });
       } finally {
         setIsSubmitting(false);
       }
