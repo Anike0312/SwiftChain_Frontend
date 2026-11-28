@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Camera, CheckCircle2, Keyboard, RefreshCw } from 'lucide-react';
 import { useMobileQrScanner } from '@/hooks/useMobileQrScanner';
 
