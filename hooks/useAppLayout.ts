@@ -9,7 +9,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { layoutService, NavItem, LayoutConfig } from '@/services/layoutService';
 import { useUser } from '@/hooks/useUser';
-import { toApiError } from '@/lib/errorUtils';
+import { getErrorMessage } from '@/lib/errors';
 
 export interface AppLayoutState {
   isLoading: boolean;
@@ -66,11 +66,10 @@ export function useAppLayout() {
           sidebarCollapsed: prefsResponse.data?.sidebarCollapsed || false,
           isLoading: false,
         }));
-      } catch (caught) {
-        const err = toApiError(caught);
+      } catch (err: unknown) {
         setState((prev) => ({
           ...prev,
-          error: err.message || 'Failed to load layout',
+          error: getErrorMessage(err, 'Failed to load layout'),
           isLoading: false,
         }));
       }

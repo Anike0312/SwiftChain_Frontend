@@ -1,20 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const ROLE_ROUTES: Record<string, readonly string[]> = {
-  '/admin': ['admin'],
-};
-
-function tokenIsUsable(token: string): boolean {
+function decodeToken(token: string): { exp?: number; role?: string } | null {
   const parts = token.split('.');
-  if (parts.length !== 3) return token.length >= 16;
+  if (parts.length !== 3) return token.length >= 16 ? {} : null;
   try {
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))) as {
-      exp?: number;
-    };
-    return !payload.exp || payload.exp * 1000 > Date.now();
+    return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -26,18 +19,21 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/admin');
 
-  if (isProtected && (!token || !tokenIsUsable(token))) {
+  const claims = token ? decodeToken(token) : null;
+  const expired = claims?.exp ? claims.exp * 1000 <= Date.now() : false;
+  if (isProtected && (!claims || expired)) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     return NextResponse.redirect(loginUrl);
   }
 
-  const restrictedRoute = Object.keys(ROLE_ROUTES).find((route) => pathname.startsWith(route));
-  const role = request.cookies.get('userRole')?.value.toLowerCase();
-  if (restrictedRoute && (!role || !ROLE_ROUTES[restrictedRoute].includes(role))) {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = '/dashboard';
-    return NextResponse.redirect(dashboardUrl);
+  if (pathname.startsWith('/admin')) {
+    const role = (claims?.role ?? request.cookies.get('userRole')?.value)?.toLowerCase();
+    if (role !== 'admin') {
+      const dashboardUrl = request.nextUrl.clone();
+      dashboardUrl.pathname = '/dashboard';
+      return NextResponse.redirect(dashboardUrl);
+    }
   }
 
   return NextResponse.next();
