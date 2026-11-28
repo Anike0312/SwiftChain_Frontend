@@ -201,7 +201,7 @@ class ToastService {
    * Mark a toast notification as read (on backend)
    * @param notificationId - ID of the notification
    */
-  async markAsRead(notificationId: string): Promise<ApiResponse<any>> {
+  async markAsRead(notificationId: string): Promise<ApiResponse<unknown>> {
     try {
       const { data } = await axios.patch(
         `${API_BASE_URL}/api/notifications/${notificationId}/read`
