@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/authService';
-import { toApiError } from '@/lib/errorUtils';
+import { normalizeAuthError } from '@/lib/authError';
 
 interface LoginCredentials {
   email: string;
@@ -117,11 +117,8 @@ export function useLogin(): UseLoginReturn {
         } else {
           setErrors({ form: response.message || 'Login failed' });
         }
-      } catch (caught) {
-        const error = toApiError(caught);
-        const errorMessage =
-          error?.response?.data?.message || error?.message || 'An error occurred during login';
-        setErrors({ form: errorMessage });
+      } catch (error: unknown) {
+        setErrors({ form: normalizeAuthError(error).message });
       } finally {
         setIsSubmitting(false);
       }
