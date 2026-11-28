@@ -1,3 +1,4 @@
+
 export interface DriverInfo {
   id: string;
   name: string;
@@ -28,6 +29,8 @@ export interface Delivery {
   updatedAt: string;
   completedAt?: string;
 }
+
+export type DeliveryStatus = 'PENDING' | 'ACCEPTED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
 
 export interface StatusEvent {
   id: string;

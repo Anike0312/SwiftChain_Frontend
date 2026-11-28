@@ -5,6 +5,10 @@ import type { ZodType } from 'zod';
 import { genericProfileFormSchema } from '@/lib/validation/schemas';
 import { validateField, validateWithSchema } from '@/lib/validation/validate';
 
+/** Values a form field can hold. */
+type FormValue = string | number | boolean | null | undefined;
+type FormValues = Record<string, FormValue>;
+
 interface UseFormValidationProps {
   /** Zod schema used for validation. Defaults to the generic profile form schema. */
   schema?: ZodType<any, any, any>;
@@ -12,25 +16,25 @@ interface UseFormValidationProps {
 }
 
 interface UseFormValidationReturn {
-  values: Record<string, any>;
+  values: FormValues;
   errors: Record<string, string>;
   isSubmitting: boolean;
-  handleChange: (name: string, value: any) => void;
+  handleChange: (name: string, value: FormValue) => void;
   handleBlur: (name: string) => Promise<void>;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
-  setFieldValue: (name: string, value: any) => void;
+  setFieldValue: (name: string, value: FormValue) => void;
 }
 
 export function useFormValidation({
   schema = genericProfileFormSchema,
   onSubmit,
 }: UseFormValidationProps): UseFormValidationReturn {
-  const [values, setValues] = useState<Record<string, any>>({});
+  const [values, setValues] = useState<FormValues>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = useCallback(
-    (name: string, value: any) => {
+    (name: string, value: FormValue) => {
       setValues((prev) => ({ ...prev, [name]: value }));
       if (errors[name]) {
         setErrors((prev) => {
@@ -56,7 +60,7 @@ export function useFormValidation({
     [schema, values]
   );
 
-  const setFieldValue = useCallback((name: string, value: any) => {
+  const setFieldValue = useCallback((name: string, value: FormValue) => {
     setValues((prev) => ({ ...prev, [name]: value }));
   }, []);
 

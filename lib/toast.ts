@@ -4,21 +4,25 @@
  * Provides utilities for displaying different toast types
  */
 
-import axios from 'axios';
+import axios from '@/lib/httpClient';
+import { toApiError } from '@/lib/errorUtils';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 /**
  * Toast variant types
  */
-export type ToastVariant = 'success' | 'error' | 'info' | 'loading';
+export type ToastVariant = 'success' | 'error' | 'info' | 'loading' | 'default' | 'destructive';
 
 /**
  * Toast configuration from backend
  */
 export interface ToastConfig {
-  variant: ToastVariant;
-  message: string;
+  /** Short title shown in bold (alias for message when message is omitted) */
+  title?: string;
+  variant?: ToastVariant;
+  /** Main message body */
+  message?: string;
   duration?: number;
   description?: string;
   action?: {
@@ -159,7 +163,8 @@ class ToastService {
         `${API_BASE_URL}/api/notifications/toasts`
       );
       return data;
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Failed to fetch toast messages:', error.message);
       return {
         success: false,
@@ -179,7 +184,8 @@ class ToastService {
         `${API_BASE_URL}/api/notifications/config`
       );
       return data;
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Failed to fetch toast config:', error.message);
       return {
         success: false,
@@ -196,13 +202,14 @@ class ToastService {
    * Mark a toast notification as read (on backend)
    * @param notificationId - ID of the notification
    */
-  async markAsRead(notificationId: string): Promise<ApiResponse<any>> {
+  async markAsRead(notificationId: string): Promise<ApiResponse<unknown>> {
     try {
       const { data } = await axios.patch(
         `${API_BASE_URL}/api/notifications/${notificationId}/read`
       );
       return data;
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Failed to mark notification as read:', error.message);
       return {
         success: false,

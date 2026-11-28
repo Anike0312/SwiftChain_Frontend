@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useCancelShipment } from '@/hooks/useCancelShipment';
+import { ModalFocusTrap } from '@/components/shared/ModalFocusTrap';
 
 interface CancelShipmentProps {
   shipmentId: string;
@@ -23,6 +24,7 @@ interface CancelShipmentProps {
  */
 export function CancelShipment({ shipmentId }: CancelShipmentProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const {
     canCancel,
@@ -74,15 +76,27 @@ export function CancelShipment({ shipmentId }: CancelShipmentProps) {
         {isCancelling ? 'Cancelling...' : 'Cancel Request'}
       </button>
 
+      {/* Backdrop overlay */}
       {isModalOpen && (
         <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="cancel-shipment-title"
-          aria-describedby="cancel-shipment-description"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-        >
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
+          className="fixed inset-0 z-50 bg-black/50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* Modal with focus trap */}
+      <ModalFocusTrap
+        ref={modalRef}
+        id="cancel-shipment-modal"
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        ariaLabelledBy="cancel-shipment-title"
+        ariaDescribedBy="cancel-shipment-description"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      >
+        <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
             <h2
               id="cancel-shipment-title"
               className="text-lg font-semibold text-neutral-900 dark:text-neutral-50"
@@ -124,8 +138,7 @@ export function CancelShipment({ shipmentId }: CancelShipmentProps) {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </ModalFocusTrap>
     </div>
   );
 }
