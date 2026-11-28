@@ -1,8 +1,15 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import React, { useMemo, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { useTrackingRoute } from '@/hooks/useTrackingRoute';
+import { calculateDistanceKm } from '@/services/geofenceService';
+import { Coordinate, MapBounds, RouteData } from '@/types/tracking';
+import { AlertCircle, Loader2, Package } from 'lucide-react';
 
-export { calculateEstimatedDeliveryDate, calculateRemainingEtaMinutes } from './trackingEta';
+const DEFAULT_AVERAGE_SPEED_KMH = 40;
 
 export interface TrackingMapProps {
   deliveryId: string | null;

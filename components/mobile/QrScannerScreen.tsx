@@ -120,5 +120,3 @@ export function QrScannerScreen() {
     </main>
   );
 }
-
-export default QrScannerScreen;
